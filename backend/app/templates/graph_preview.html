@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SuggestIT - Taste Network Graph (Canlı Zevk Haritası)</title>
+  <title>SuggestIT - Taste Network Graph (Kapsamlı Zevk Haritası)</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -44,7 +44,7 @@
       transform: translateX(-50%);
       background: rgba(15, 23, 42, 0.85);
       backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 40px;
       padding: 8px 16px;
       display: flex;
@@ -61,7 +61,7 @@
       border-radius: 20px;
       outline: none;
       font-size: 14px;
-      width: 200px;
+      width: 220px;
     }
     .top-bar button {
       background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
@@ -91,12 +91,12 @@
       position: absolute;
       bottom: 28px;
       left: 28px;
-      background: rgba(15, 23, 42, 0.9);
+      background: rgba(15, 23, 42, 0.92);
       backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 20px;
       padding: 24px;
-      max-width: 360px;
+      max-width: 380px;
       z-index: 100;
       box-shadow: 0 20px 40px rgba(0,0,0,0.6);
     }
@@ -132,6 +132,19 @@
       color: #cbd5e1;
       margin-bottom: 16px;
     }
+    .stats-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .stats-pill {
+      background: rgba(255, 255, 255, 0.06);
+      padding: 4px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
     .tags {
       display: flex;
       flex-wrap: wrap;
@@ -149,21 +162,29 @@
       position: absolute;
       bottom: 28px;
       right: 28px;
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(15, 23, 42, 0.9);
       backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
-      padding: 14px 20px;
+      padding: 16px 20px;
       z-index: 100;
       font-size: 12px;
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
+    .legend-title {
+      font-weight: 700;
+      color: #94a3b8;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
     .legend-item {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
     .legend-dot {
       width: 12px;
@@ -172,41 +193,40 @@
     }
     /* D3 SVG Stilleri */
     .links line {
-      stroke: rgba(255, 255, 255, 0.15);
-      stroke-width: 1.2px;
+      stroke-width: 1px;
       transition: stroke 0.3s ease;
     }
     .nodes circle {
       stroke: #090a0f;
-      stroke-width: 2px;
+      stroke-width: 1.5px;
       cursor: pointer;
       transition: all 0.3s ease;
     }
     .nodes circle:hover {
       stroke: #ffffff;
       stroke-width: 3px;
-      filter: drop-shadow(0 0 12px currentColor);
+      filter: drop-shadow(0 0 14px currentColor);
     }
     .node-label {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       fill: #e2e8f0;
       pointer-events: none;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+      text-shadow: 0 2px 4px rgba(0,0,0,0.9);
     }
     /* Tooltip */
     #tooltip {
       position: absolute;
       background: rgba(15, 23, 42, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.2);
-      padding: 8px 14px;
-      border-radius: 8px;
+      padding: 10px 16px;
+      border-radius: 10px;
       font-size: 12px;
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
       z-index: 200;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
   </style>
 </head>
@@ -216,7 +236,7 @@
   <div class="top-bar">
     <input type="text" id="usernameInput" placeholder="Letterboxd Kullanıcı Adı" value="dave" />
     <button onclick="loadLetterboxd()">Ağımı Çiz</button>
-    <button class="btn-secondary" onclick="loadSampleIMDb()">Örnek IMDb</button>
+    <button class="btn-secondary" onclick="loadSampleIMDb()">Örnek IMDb Portföyü</button>
   </div>
 
   <!-- SVG Alanı -->
@@ -228,16 +248,24 @@
   <div class="archetype-card" id="archetypeCard">
     <div class="archetype-badge">Sinematik Zevk DNA'sı</div>
     <div class="archetype-title" id="archTitle">Yükleniyor...</div>
-    <div class="archetype-tagline" id="archTagline">Sinema profiliniz analiz ediliyor</div>
+    <div class="archetype-tagline" id="archTagline">Tüm izleme geçmişiniz analiz ediliyor</div>
+    <div class="stats-row" id="statsRow">
+      <div class="stats-pill" id="statCount">Toplam: -</div>
+      <div class="stats-pill" id="statRating">Ort. Puan: -</div>
+    </div>
     <div class="archetype-desc" id="archDesc">Lütfen bekleyin...</div>
     <div class="tags" id="archTags"></div>
   </div>
 
   <!-- Lejant -->
   <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background: #00f2fe; box-shadow: 0 0 8px #00f2fe;"></div><span>Türler (Büyük Düğümler)</span></div>
+    <div class="legend-title">Ağ Örüntüleri & Düğümler</div>
+    <div class="legend-item"><div class="legend-dot" style="background: #00f2fe; box-shadow: 0 0 8px #00f2fe;"></div><span>Türler (Sci-Fi, Crime vb.)</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background: #a18cd1; box-shadow: 0 0 8px #a18cd1;"></div><span>Dönem / Yıl (Decades)</span></div>
     <div class="legend-item"><div class="legend-dot" style="background: #f9d423; box-shadow: 0 0 8px #f9d423;"></div><span>Yönetmenler (Sarı)</span></div>
-    <div class="legend-item"><div class="legend-dot" style="background: #ffffff; box-shadow: 0 0 8px #ffffff;"></div><span>Kilit Yapımlar (Beyaz)</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background: #ff9a9e; box-shadow: 0 0 8px #ff9a9e;"></div><span>Dizi Formatı (Mercan)</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background: #ffffff; box-shadow: 0 0 6px #ffffff;"></div><span>Yüksek Puanlı Yapımlar (8-10)</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background: #ff6b6b; box-shadow: 0 0 6px #ff6b6b;"></div><span>Düşük Puanlılar / Negatif Alan (<6)</span></div>
   </div>
 
   <!-- Tooltip -->
@@ -253,7 +281,7 @@
 
     // Zoom & Pan
     const zoom = d3.zoom()
-      .scaleExtent([0.2, 4])
+      .scaleExtent([0.15, 4])
       .on("zoom", (event) => {
         g.attr("transform", event.transform);
       });
@@ -269,6 +297,8 @@
       document.getElementById("archTitle").innerText = arch.title;
       document.getElementById("archTagline").innerText = arch.tagline;
       document.getElementById("archDesc").innerText = arch.description;
+      document.getElementById("statCount").innerText = `🎬 Toplam: ${arch.total_watched} Yapım`;
+      document.getElementById("statRating").innerText = arch.average_rating ? `⭐ Ort: ${arch.average_rating}/10` : '⭐ Ort: -';
 
       const tagsContainer = document.getElementById("archTags");
       tagsContainer.innerHTML = "";
@@ -285,27 +315,34 @@
         tagsContainer.appendChild(eraSpan);
       }
 
-      // D3 Force Simulation
+      // D3 Force Simulation (Büyük ağlar için optimize edilmiş kuvvetler)
       simulation = d3.forceSimulation(graphData.nodes)
         .force("link", d3.forceLink(graphData.edges).id(d => d.id).distance(d => {
-          return d.relation === "has_genre" ? 80 : 120;
-        }).strength(0.6))
+          if (d.relation === "from_decade") return 90;
+          if (d.relation === "has_genre") return 70;
+          if (d.relation === "directed_by") return 80;
+          return 130;
+        }).strength(0.5))
         .force("charge", d3.forceManyBody().strength(d => {
-          return d.type === "genre" ? -400 : -180;
+          if (d.type === "genre" || d.type === "decade") return -280;
+          if (d.type === "director") return -180;
+          return -60;
         }))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(d => d.size + 15));
+        .force("collision", d3.forceCollide().radius(d => d.size + 6));
 
-      // Kenarlar
+      // Kenarlar (Relation türüne göre renk)
       const link = g.append("g")
         .attr("class", "links")
         .selectAll("line")
         .data(graphData.edges)
         .enter().append("line")
-        .attr("stroke-opacity", 0.3)
+        .attr("stroke-opacity", 0.25)
         .attr("stroke", d => {
+          if (d.relation === "from_decade") return "#a18cd1";
           if (d.relation === "co_genre") return "#00f2fe";
           if (d.relation === "directed_by") return "#f9d423";
+          if (d.relation === "has_format") return "#ff9a9e";
           return "#ffffff";
         });
 
@@ -323,23 +360,37 @@
       node.append("circle")
         .attr("r", d => d.size)
         .attr("fill", d => d.color)
-        .style("filter", d => `drop-shadow(0 0 ${d.type === 'genre' ? 10 : 5}px ${d.color})`);
+        .style("filter", d => {
+          if (d.type === "title") return "none";
+          return `drop-shadow(0 0 8px ${d.color})`;
+        });
 
+      // Sadece ana düğümlere (Tür, Dönem, Yönetmen, Format) veya yüksek puanlı filmlere isim yaz
       node.append("text")
         .attr("class", "node-label")
         .attr("text-anchor", "middle")
-        .attr("dy", d => d.size + 14)
-        .text(d => d.label);
+        .attr("dy", d => d.size + 12)
+        .text(d => {
+          if (d.type !== "title") return d.label;
+          if (d.rating && d.rating >= 8.5) return d.label;
+          return "";
+        });
 
       // Tooltip Etkileşimi
       const tooltip = d3.select("#tooltip");
       node.on("mouseover", (event, d) => {
+        let typeBadge = d.type.toUpperCase();
+        if (d.type === "decade") typeBadge = "DÖNEM / ÇIKIŞ YILI";
+        if (d.type === "genre") typeBadge = "SİNEMA TÜRÜ";
+        if (d.type === "director") typeBadge = "YÖNETMEN";
+        if (d.type === "format") typeBadge = "FORMAT";
+
         tooltip.style("opacity", 1)
           .html(`
             <strong>${d.label}</strong><br/>
-            <span style="color:#94a3b8">Tür: ${d.type.toUpperCase()}</span><br/>
-            ${d.rating ? `<span>Puan: ⭐ ${d.rating}</span><br/>` : ''}
-            ${d.year ? `<span>Yıl: ${d.year}</span>` : ''}
+            <span style="color:#94a3b8">${typeBadge}</span><br/>
+            ${d.rating !== null && d.rating !== undefined ? `<span>Puan: ⭐ ${d.rating}/10</span><br/>` : ''}
+            ${d.year ? `<span>Çıkış Yılı: 📅 ${d.year}</span>` : ''}
           `);
       })
       .on("mousemove", (event) => {
@@ -378,11 +429,11 @@
       d.fy = null;
     }
 
-    // Letterboxd Verisi ile Ağ Çizdir
+    // Letterboxd Verisi ile Canlı Ağ Çizdir
     async function loadLetterboxd() {
       const username = document.getElementById("usernameInput").value.trim() || "dave";
       document.getElementById("archTitle").innerText = "Veri Çekiliyor...";
-      document.getElementById("archDesc").innerText = `${username} için Letterboxd verileri ve TMDB metadata taranıyor...`;
+      document.getElementById("archDesc").innerText = `${username} için tüm izleme geçmişi ve örüntüler analiz ediliyor...`;
 
       try {
         const syncResp = await fetch("/api/v1/sync/letterboxd-url", {
@@ -404,9 +455,9 @@
       }
     }
 
-    // Örnek IMDb Verisi ile Ağ Çizdir
+    // Örnek IMDb Portföyü ile Canlı Ağ Çizdir
     async function loadSampleIMDb() {
-      document.getElementById("archTitle").innerText = "IMDb Yükleniyor...";
+      document.getElementById("archTitle").innerText = "IMDb Portföyü Analiz Ediliyor...";
       const sampleTitles = [
         { title: "Inception", year: 2010, user_rating: 9.5, title_type: "movie" },
         { title: "Interstellar", year: 2014, user_rating: 9.0, title_type: "movie" },
@@ -414,10 +465,20 @@
         { title: "Fight Club", year: 1999, user_rating: 8.5, title_type: "movie" },
         { title: "Se7en", year: 1995, user_rating: 9.0, title_type: "movie" },
         { title: "Breaking Bad", year: 2008, user_rating: 10.0, title_type: "tvSeries" },
+        { title: "Better Call Saul", year: 2015, user_rating: 9.5, title_type: "tvSeries" },
         { title: "Dune", year: 2021, user_rating: 8.5, title_type: "movie" },
         { title: "Blade Runner 2049", year: 2017, user_rating: 9.0, title_type: "movie" },
         { title: "Oppenheimer", year: 2023, user_rating: 9.0, title_type: "movie" },
-        { title: "Tenet", year: 2020, user_rating: 7.5, title_type: "movie" }
+        { title: "Tenet", year: 2020, user_rating: 7.0, title_type: "movie" },
+        { title: "The Matrix", year: 1999, user_rating: 9.5, title_type: "movie" },
+        { title: "Pulp Fiction", year: 1994, user_rating: 9.0, title_type: "movie" },
+        { title: "Goodfellas", year: 1990, user_rating: 8.5, title_type: "movie" },
+        { title: "Taxi Driver", year: 1976, user_rating: 8.0, title_type: "movie" },
+        { title: "The Godfather", year: 1972, user_rating: 10.0, title_type: "movie" },
+        { title: "The Substance", year: 2024, user_rating: 8.5, title_type: "movie" },
+        { title: "Anora", year: 2024, user_rating: 8.0, title_type: "movie" },
+        { title: "Gladiator II", year: 2024, user_rating: 5.5, title_type: "movie" }, // Düşük puan örneği
+        { title: "Kötü Bir Film Örneği", year: 2022, user_rating: 3.0, title_type: "movie" } // Düşük puan örneği
       ];
 
       const graphResp = await fetch("/api/v1/graph/generate", {
@@ -429,7 +490,7 @@
       renderGraph(graphData);
     }
 
-    // İlk açılışta otomatik olarak örnek IMDb verisini yükle
+    // İlk açılışta yükle
     window.addEventListener("DOMContentLoaded", () => {
       loadSampleIMDb();
     });

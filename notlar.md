@@ -4,18 +4,20 @@ Bu dosya, proje sürecinde yaptığımız beyin fırtınalarını, teknik araşt
 
 ---
 
-## 🔬 URL Testi & Canlı Araştırma Sonuçları (2026-09-19)
+## 📌 Mimari İlkeler & Kararlar (2026-09-19)
 
-### 1. IMDb URL Testi & AWS WAF Engeli
-- **Gerçek Test:** `IMDbService.sync_from_url` gerçek IMDb herkese açık liste ve profil URL'leri (`imdb.com/list/...` ve `imdb.com/user/ur.../ratings`) ile test edildi.
-- **Sonuç:** IMDb sunucuları doğrudan HTTP GET isteklerine (Python requests, httpx veya curl) `HTTP 202 / 403 Forbidden` yanıtı döndürüyor.
-- **Teşhis:** Sayfada `window.awsWafCookieDomainList = ['imdb.com']` ve `challenge.js` scripti çalışıyor. Amazon Web Services WAF (Web Application Firewall), JavaScript çalıştırmayan istemcileri doğrudan bot olarak sınıflandırıp engelliyor.
-- **Mimari Çözüm:** 
-  - Kullanıcı IMDb kullanıyorsa, masaüstünden indirdiği `ratings.csv` veya `watchlist.csv` dosyasını arayüze sürükleyecek (CSV parser'ımız bunu saliseler içinde kusursuz çözüyor).
+### 1. Eksiksiz Temsil (Zero-Exclusion İlkesi)
+- **Kural:** Kullanıcının izlediği **tüm yapımlar (puanı 1 de olsa 10 da olsa) ağda yer alır.**
+- **Görsel Ayrışma:**
+  - Yüksek puanlılar (8-10): Parlak beyaz (#ffffff), büyük düğüm, yüksek çekim gücü.
+  - Orta puanlılar (6-7.9): Normal açık gri (#cbd5e1).
+  - Düşük puanlılar (<6): Kırmızımsı-pembe (#ff6b6b) - kullanıcının sevilmeyenler / negatif zevk alanını net gösteren düğümler.
 
----
-
-### 2. Letterboxd URL Canlı Testi (BÜYÜK BAŞARI!)
-- **Gerçek Test:** Popüler Letterboxd kullanıcı profili (`letterboxd.com/dave` veya kullanıcı adı `dave`) üzerinden test yapıldı.
-- **Sonuç:** `HTTP 200 OK` ile **100 adet film, çıkış yılları, kullanıcının verdiği 5'lik puanlar (10'luk sisteme çevrildi) ve hatta TMDB ID'leri** tek istekte 0.2 saniyede başarıyla çekildi!
-- **Yeni Uç Nokta Eklendi:** `POST /api/v1/sync/letterboxd-url` servisi doğrudan canlıya alındı ve API testleri başarıyla geçti (`[SUCCESS]`).
+### 2. Anti-Jenerik & Örüntü (Pattern) Tabanlı Bağlama
+- **Kural:** "Cinema" gibi yapay, anlamsız şemsiye düğümler kesinlikle yasaklandı ve kaldırıldı.
+- **Doğal Örüntüler (Patterns):**
+  - **Tür Örüntüleri (Genre):** Sci-Fi, Crime, Drama, Thriller vb.
+  - **Dönem / Yıl Örüntüleri (Decades):** `2020'ler`, `2010'lar`, `2000'ler`, `90'lar Klasikleri`, `80'ler`, `Klasik Dönem (<1980)`.
+  - **Yönetmen Örüntüleri (Director):** Christopher Nolan, David Fincher, Quentin Tarantino, Denis Villeneuve vb.
+  - **Format Örüntüsü (Format):** Dizi Dünyası (tvSeries, miniSeries).
+  - Her yapım mutlaka ait olduğu **tür, dönem, yönetmen veya format** düğümlerine organik olarak bağlanır; türü bilinmese dahi dönemine ve yönetmenine bağlanarak havada kalmaz.

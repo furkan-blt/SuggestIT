@@ -1,10 +1,10 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 class GraphNode(BaseModel):
-    id: str = Field(..., description="Düğümün benzersiz kimliği (örn: 'genre_sci-fi', 'dir_christopher_nolan')")
+    id: str = Field(..., description="Düğümün benzersiz kimliği (örn: 'genre_sci-fi', 'decade_2010s', 'title_tt123')")
     label: str = Field(..., description="Kullanıcıya gösterilecek isim")
-    type: str = Field(..., description="'genre', 'director' veya 'title'")
+    type: str = Field(..., description="'genre', 'director', 'decade', 'format' veya 'title'")
     weight: float = Field(1.0, description="Düğümün ağırlığı / önem derecesi")
     size: int = Field(20, description="Görselleştirme boyutu")
     color: str = Field("#ffffff", description="Görselleştirme rengi")
@@ -14,7 +14,7 @@ class GraphNode(BaseModel):
 class GraphEdge(BaseModel):
     source: str = Field(..., description="Kaynak düğüm ID'si")
     target: str = Field(..., description="Hedef düğüm ID'si")
-    relation: str = Field("connected_to", description="'has_genre', 'directed_by', 'co_genre'")
+    relation: str = Field("connected_to", description="'has_genre', 'directed_by', 'from_decade', 'has_format', 'co_genre', 'director_genre'")
     weight: float = Field(1.0, description="Bağlantının gücü")
 
 class TasteArchetype(BaseModel):

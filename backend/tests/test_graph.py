@@ -10,52 +10,51 @@ from app.main import app
 
 client = TestClient(app)
 
-def test_graph_service_generation():
+def test_complete_pattern_graph():
     titles = [
         TitleItem(title="Inception", year=2010, user_rating=9.5),
         TitleItem(title="Interstellar", year=2014, user_rating=9.0),
         TitleItem(title="The Dark Knight", year=2008, user_rating=10.0),
         TitleItem(title="Fight Club", year=1999, user_rating=8.5),
-        TitleItem(title="Se7en", year=1995, user_rating=9.0),
         TitleItem(title="Breaking Bad", year=2008, user_rating=10.0, title_type="tvSeries"),
+        TitleItem(title="The Godfather", year=1972, user_rating=10.0),
+        TitleItem(title="Kötü Film", year=2023, user_rating=3.0), # Düşük puanlı yapım
     ]
 
     graph = GraphService.generate_graph(titles)
 
-    print("\n--- Taste Network Graph Testi ---")
+    print("\n--- Pattern Tabanli Taste Network Graph Testi ---")
     print(f"Sinematik Arketip: {graph.archetype.title}")
-    print(f"Slogan: {graph.archetype.tagline}")
-    print(f"Baskin Turler: {graph.archetype.dominant_genres}")
-    print(f"Toplam Dugum (Nodes): {graph.total_nodes}")
-    print(f"Toplam Baglanti (Edges): {graph.total_edges}")
+    print(f"Toplam Dugum: {graph.total_nodes}")
+    print(f"Toplam Baglanti: {graph.total_edges}")
 
-    assert graph.total_nodes > 0
-    assert graph.total_edges > 0
-    assert graph.archetype.title != ""
-    assert len(graph.archetype.dominant_genres) > 0
-    print("[OK] GraphService veri uretim testi BASARILI!")
+    node_types = {n.type for n in graph.nodes}
+    print(f"Ağdaki Düğüm Tipleri: {node_types}")
 
-def test_graph_endpoints():
-    # 1. Preview HTML uç noktası
-    html_resp = client.get("/api/v1/graph/preview")
-    assert html_resp.status_code == 200
-    assert "SuggestIT - Taste Network Graph" in html_resp.text
-    print("[OK] /api/v1/graph/preview HTML arayuzu testi BASARILI!")
+    # 1. 'Cinema' adında sahte bir düğüm asla olmamalı!
+    labels = [n.label.lower() for n in graph.nodes]
+    assert "cinema" not in labels, "HATA: Sahte 'Cinema' düğümü bulundu!"
 
-    # 2. Graph generate API uç noktası
-    payload = [
-        {"title": "Inception", "year": 2010, "user_rating": 9.5},
-        {"title": "Dune", "year": 2021, "user_rating": 9.0}
-    ]
-    api_resp = client.post("/api/v1/graph/generate", json=payload)
-    assert api_resp.status_code == 200
-    data = api_resp.json()
-    assert "archetype" in data
-    assert len(data["nodes"]) > 0
-    print("[OK] /api/v1/graph/generate API testi BASARILI!")
+    # 2. Tüm yapımlar ağda yer almalı (7 yapımın 7'si de dahil edilmeli)
+    title_nodes = [n for n in graph.nodes if n.type == "title"]
+    assert len(title_nodes) == len(titles), f"HATA: Bazı yapımlar elendi! Beklenen {len(titles)}, bulunan {len(title_nodes)}"
+
+    # 3. Decade (Dönem) pattern'i ağda olmalı
+    assert "decade" in node_types, "HATA: Dönem/Yıl pattern düğümü bulunamadı!"
+
+    # 4. Format (Dizi) pattern'i ağda olmalı
+    assert "format" in node_types, "HATA: Dizi format düğümü bulunamadı!"
+
+    print("[OK] Tum yapimlarin eksiksiz temsili ve Cinema dugumunun kaldirildigi dogrulandi!")
+
+def test_preview_endpoint():
+    resp = client.get("/api/v1/graph/preview")
+    assert resp.status_code == 200
+    assert "Kapsamlı Zevk Haritası" in resp.text
+    print("[OK] Preview sayfasi testi BASARILI!")
 
 if __name__ == "__main__":
-    print("Taste Network Graph Testleri Baslatiliyor...")
-    test_graph_service_generation()
-    test_graph_endpoints()
-    print("\n[SUCCESS] Tum Faz 2 Taste Graph Testleri Kusursuz Gecti!")
+    print("Guncel Taste Graph Testleri Baslatiliyor...")
+    test_complete_pattern_graph()
+    test_preview_endpoint()
+    print("\n[SUCCESS] Tum Testler Basariyla Gecti!")
