@@ -1,0 +1,6 @@
+Const,Your Rating,Date Rated,Title,URL,Title Type,IMDb Rating,Runtime (mins),Year,Genres,Num Votes,Release Date,Directors
+tt0111161,10,2024-01-15,The Shawshank Redemption,https://www.imdb.com/title/tt0111161/,movie,9.3,142,1994,"Drama",2900000,1994-10-14,"Frank Darabont"
+tt0468569,9,2024-02-10,The Dark Knight,https://www.imdb.com/title/tt0468569/,movie,9.0,152,2008,"Action, Crime, Drama",2900000,2008-07-18,"Christopher Nolan"
+tt0903747,10,2024-03-01,Breaking Bad,https://www.imdb.com/title/tt0903747/,tvSeries,9.5,49,2008,"Crime, Drama, Thriller",2200000,2008-01-20,"Vince Gilligan"
+tt0137523,8,2024-03-10,Fight Club,https://www.imdb.com/title/tt0137523/,movie,8.8,139,1999,"Drama",2300000,1999-10-15,"David Fincher"
+tt0816692,9,2024-04-01,Interstellar,https://www.imdb.com/title/tt0816692/,movie,8.7,169,2014,"Adventure, Drama, Sci-Fi",2100000,2014-11-07,"Christopher Nolan"
