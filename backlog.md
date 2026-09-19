@@ -7,16 +7,16 @@ Bu dosya, SuggestIT projesinde planlanan, devam eden, tamamlanan ve özellikle *
 ## 📌 Durumu: Devam Eden / Yarıda Bırakılanlar (In Progress & On Hold)
 > *Bir iş yarıda kesildiğinde veya askıya alındığında nerede kalındığı ve sonraki adım buraya not düşülür.*
 
-*Henüz aktif yarıda kalan iş bulunmuyor.*
+* **Devam Eden:** Faz 1 Çekirdek Backend Testleri ve Doğrulama. Bağımlılıkların yüklenmesi ve testlerin çalıştırılması aşamasındayız.
 
 ---
 
 ## 📋 Yapılacaklar (To-Do / Backlog)
 
 ### Faz 1: Çekirdek Backend & Veri Entegrasyonu
-- [ ] FastAPI proje iskeletinin (klasör yapısı, bağımlılıklar) oluşturulması
-- [ ] IMDb Public URL (Ratings & Watchlist) CSV otomatik çekme ve ayrıştırma (parsing) servisi
-- [ ] Letterboxd CSV içe aktarım ve RSS okuyucu servisi
+- [x] FastAPI proje iskeletinin (klasör yapısı, bağımlılıklar, main, routes, schemas) oluşturulması
+- [x] IMDb Public URL (Ratings & Watchlist) veri çekme ve parsing servisinin yazılması (`imdb_service.py`)
+- [x] IMDb & Letterboxd CSV içe aktarım ve normalizasyon servisinin yazılması (`csv_service.py`)
 - [ ] TMDB API istemcisi (Film/Dizi afiş, özet, tür, yönetmen meta verisi eşleme)
 - [ ] Veritabanı şeması ve migration altyapısı (PostgreSQL / SQLite test ortamı)
 
@@ -40,4 +40,6 @@ Bu dosya, SuggestIT projesinde planlanan, devam eden, tamamlanan ve özellikle *
 
 ## ✅ Tamamlananlar (Done)
 - [x] Proje klasörü (`SuggestIT`), `mimari.md`, `constant.md`, `notlar.md` ve `backlog.md` dosyalarının oluşturulması (2026-09-19)
-- [x] Mimari kararların netleştirilmesi: FastAPI + Next.js, IMDb URL tabanlı çekim, Taste Network Graph ve Cross-Domain AI Motoru (2026-09-19)
+- [x] Mimari kararların netleştirilmesi: FastAPI + Next.js, IMDb URL sync, Taste Network Graph ve Cross-Domain AI Motoru (2026-09-19)
+- [x] Git repository başlatılması, `.gitignore` ve profesyonel `README.md` hazırlanması, ilk commit'in atılması (2026-09-19)
+- [x] FastAPI backend çekirdek mimarisinin kurulması (`main.py`, `routes.py`, `models.py`, `imdb_service.py`, `csv_service.py`) (2026-09-19)
