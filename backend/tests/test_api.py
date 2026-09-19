@@ -27,8 +27,18 @@ def test_csv_upload_endpoint():
     assert data["items"][0]["user_rating"] == 10.0
     print("[OK] /api/v1/import/csv endpoint testi BASARILI!")
 
+def test_letterboxd_url_endpoint():
+    # Gerçek public bir Letterboxd profili ile test
+    response = client.post("/api/v1/sync/letterboxd-url", json={"url": "dave"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["platform"] == "letterboxd"
+    assert data["total_items"] > 0
+    print(f"[OK] /api/v1/sync/letterboxd-url testi BASARILI! (Cekilen Film: {data['total_items']})")
+
 if __name__ == "__main__":
     print("FastAPI Endpoint Testleri Baslatiliyor...")
     test_health()
     test_csv_upload_endpoint()
-    print("\n[SUCCESS] Tum API Uç Nokta Testleri Kusursuz Gecti!")
+    test_letterboxd_url_endpoint()
+    print("\n[SUCCESS] Tum API Uc Nokta Testleri Kusursuz Gecti!")

@@ -5,6 +5,7 @@ from typing import Optional
 from app.schemas.models import SyncUrlRequest, SyncSummary, HealthResponse
 from app.services.imdb_service import IMDbService
 from app.services.csv_service import CSVService
+from app.services.letterboxd_service import LetterboxdService
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +20,37 @@ async def health_check():
         version="0.1.0"
     )
 
+@router.post("/sync/letterboxd-url", response_model=SyncSummary)
+async def sync_letterboxd_url(payload: SyncUrlRequest):
+    """
+    Kullanıcının Letterboxd profil URL'si veya kullanıcı adı üzerinden
+    son izleme ve puanlama verilerini anında çeker.
+    """
+    try:
+        summary = LetterboxdService.sync_from_username_or_url(payload.url)
+        return summary
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Letterboxd sync hatası: {e}")
+        raise HTTPException(status_code=500, detail=f"Letterboxd verisi çekilemedi: {str(e)}")
+
 @router.post("/sync/imdb-url", response_model=SyncSummary)
 async def sync_imdb_url(payload: SyncUrlRequest):
     """
     Kullanıcının herkese açık IMDb URL'si (Ratings veya Watchlist) üzerinden
-    izleme ve puanlama verilerini otomatik olarak çeker.
+    izleme ve puanlama verilerini çeker.
     """
     try:
         summary = IMDbService.sync_from_url(payload.url, payload.target)
         if summary.total_items == 0:
             raise HTTPException(
-                status_code=404,
-                detail="Belirtilen IMDb sayfasında film/dizi bulunamadı. Lütfen profil veya listenizin 'Public' (Herkese Açık) olduğundan emin olun."
+                status_code=403,
+                detail=(
+                    "IMDb AWS WAF bot koruması nedeniyle doğrudan URL erişimini kısıtladı. "
+                    "Lütfen IMDb masaüstü profilinizden 'Export' butonuna basarak indirdiğiniz CSV dosyasını "
+                    "'/api/v1/import/csv' ucuna yükleyin veya Letterboxd profil linkinizi kullanın."
+                )
             )
         return summary
     except ValueError as ve:
@@ -38,6 +58,7 @@ async def sync_imdb_url(payload: SyncUrlRequest):
     except Exception as e:
         logger.error(f"IMDb sync sırasında beklenmeyen hata: {e}")
         raise HTTPException(status_code=500, detail=f"Veri çekilirken sunucu hatası oluştu: {str(e)}")
+
 
 @router.post("/import/csv", response_model=SyncSummary)
 async def import_csv_file(

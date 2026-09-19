@@ -1,31 +1,21 @@
 # SuggestIT - Karşılıklı Çalışma & Teknik Notlar (Notlar)
 
-Bu dosya, proje sürecinde yaptığımız beyin fırtınalarını, teknik araştırmaları, karar süreçlerini ve henüz netleşmemiş fikir alışverişlerini canlı olarak tuttuğumuz alandır.
+Bu dosya, proje sürecinde yaptığımız beyin fırtınalarını, teknik araştırmaları, karar süreçlerini ve canlı test sonuçlarını tuttuğumuz alandır.
 
 ---
 
-## 📌 Alınan Kararlar (2026-09-19)
+## 🔬 URL Testi & Canlı Araştırma Sonuçları (2026-09-19)
 
-1. **Teknoloji Yığını Onayı:**
-   - Backend: **Python (FastAPI)**
-   - Frontend: **Next.js (React + TypeScript)**
-   - Veritabanı: **PostgreSQL + pgvector**
-
-2. **IMDb Entegrasyon Stratejisi:**
-   - Doğrudan web scraping yerine **Kullanıcı URL'si üzerinden otomatik çekim** kararlaştırıldı.
-   - Kullanıcının herkese açık (public) **Ratings** ve **Watchlist** linkleri alınacak; arkasındaki yerleşik CSV export mekanizmasıyla arka planda tek tıkla indirilecek.
-
-3. **Özgün Değer Katmanı - Taste Network Graph (Kullanıcı Karakter Ağ Grafiği):**
-   - Kullanıcının film/dizi izleme ve beğenme verilerinden kişisel bir grafik ağı (Nodes: Türler, Yönetmenler, Başlıklar; Edges: Puan ve izleme sıklığı ağırlıkları) üretilecek.
-   - Görselleştirme: Frontend'de D3.js veya Cytoscape.js ile interaktif, yaşayan bir evren olarak sunulacak.
-
-4. **Yapay Zeka ve Çapraz Eşleşme (Cross-Domain Bridge):**
-   - Dizi bitiren kullanıcıya dizi hissi veren filmler; film sevene benzer tonda mini diziler eşleştirilecek.
-   - Semantik Vektörler (Gemini Embeddings) + Negatif Filtreleme (düşük puanlıların sevilmeyen unsurlarını eleme) + LLM destekli "Neden İzlemelisin?" metinleri.
+### 1. IMDb URL Testi & AWS WAF Engeli
+- **Gerçek Test:** `IMDbService.sync_from_url` gerçek IMDb herkese açık liste ve profil URL'leri (`imdb.com/list/...` ve `imdb.com/user/ur.../ratings`) ile test edildi.
+- **Sonuç:** IMDb sunucuları doğrudan HTTP GET isteklerine (Python requests, httpx veya curl) `HTTP 202 / 403 Forbidden` yanıtı döndürüyor.
+- **Teşhis:** Sayfada `window.awsWafCookieDomainList = ['imdb.com']` ve `challenge.js` scripti çalışıyor. Amazon Web Services WAF (Web Application Firewall), JavaScript çalıştırmayan istemcileri doğrudan bot olarak sınıflandırıp engelliyor.
+- **Mimari Çözüm:** 
+  - Kullanıcı IMDb kullanıyorsa, masaüstünden indirdiği `ratings.csv` veya `watchlist.csv` dosyasını arayüze sürükleyecek (CSV parser'ımız bunu saliseler içinde kusursuz çözüyor).
 
 ---
 
-## 💡 Sonraki Fikir Alışverişleri & Araştırma Konuları
-- Network Graph için node ağırlıklandırma formülü (Örn: `Ağırlık = (İzleme Sayısı * 0.4) + (Ortalama Puan * 0.6)`).
-- TMDB API anahtarının backend'e entegrasyonu ve cache mekanizması.
-- IMDb URL formatlarının regex ile doğrulanması (`imdb.com/user/ur.../ratings` vb.).
+### 2. Letterboxd URL Canlı Testi (BÜYÜK BAŞARI!)
+- **Gerçek Test:** Popüler Letterboxd kullanıcı profili (`letterboxd.com/dave` veya kullanıcı adı `dave`) üzerinden test yapıldı.
+- **Sonuç:** `HTTP 200 OK` ile **100 adet film, çıkış yılları, kullanıcının verdiği 5'lik puanlar (10'luk sisteme çevrildi) ve hatta TMDB ID'leri** tek istekte 0.2 saniyede başarıyla çekildi!
+- **Yeni Uç Nokta Eklendi:** `POST /api/v1/sync/letterboxd-url` servisi doğrudan canlıya alındı ve API testleri başarıyla geçti (`[SUCCESS]`).
