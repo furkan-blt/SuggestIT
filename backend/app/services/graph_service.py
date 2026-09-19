@@ -117,8 +117,9 @@ class GraphService:
     @classmethod
     def generate_graph(cls, titles: List[TitleItem]) -> NetworkGraphResponse:
         """
-        Kullanıcının izlediği TÜM yapımları içeren, organik örüntülerle (Tür, Dönem, Yönetmen, Format)
-        örülmüş eksiksiz Taste Network Graph verisini üretir.
+        Kullanıcının izlediği TÜM yapımları içeren, organik örüntülerle 
+        (v2 algoritması: PageRank, Louvain toplulukları) örülmüş eksiksiz 
+        Taste Network Graph verisini üretir.
         """
         if not titles:
             raise ValueError("Grafik üretmek için en az bir film/dizi başlığı gereklidir.")
@@ -126,249 +127,152 @@ class GraphService:
         # 1. Eksik metadata bilgilerini organik tamamla
         enriched_titles = TMDBService.enrich_all(titles)
 
-        # 2. İstatistikleri topla
-        genre_ratings: Dict[str, List[float]] = defaultdict(list)
-        director_counts: Counter = Counter()
-        decade_counts: Counter = Counter()
-        all_ratings: List[float] = []
-
-        for item in enriched_titles:
-            rating = item.user_rating if item.user_rating is not None else 7.0
-            all_ratings.append(rating)
-
-            # Dönem sayımı
+        # 2. V2 algoritması için dict listesine çevir
+        watched_list = []
+        for idx, item in enumerate(enriched_titles):
+            # Eğer gün/zaman bilgisi yoksa None verelim (yeni eklenenler için)
+            days_watched = 30 # Default varsayım
+            
+            # Genres ve keywords ayarla
+            genres = [g.strip().capitalize() for g in item.genres if g.strip()]
+            if not genres:
+                genres = ["Unknown"]
+            
+            directors = [d.strip() for d in item.directors if d.strip()]
+            director = directors[0] if directors else "Unknown"
+            
             dec_id, dec_label = cls.get_decade_info(item.year)
-            if dec_id != "decade_unknown":
-                decade_counts[(dec_id, dec_label)] += 1
+            
+            watched_list.append({
+                "id": f"t_{idx}", # Geçici ID
+                "title": item.title,
+                "media_type": "series" if "tv" in (item.title_type or "").lower() or "series" in (item.title_type or "").lower() else "movie",
+                "genres": genres,
+                "director": director,
+                "decade": dec_label,
+                "keywords": [], # Eğer keywords eklersek buradan alır (TMDbService'e eklenebilir)
+                "user_rating": item.user_rating if item.user_rating is not None else 7.0,
+                "days_since_watched": days_watched,
+                "original_item": item # Orijinal veriyi sakla
+            })
 
-            # Tür sayımı (Gerçek türler)
-            for g in item.genres:
-                clean_g = g.strip().capitalize()
-                # Kesinlikle 'Cinema' gibi yapay etiketleri alma
-                if clean_g and clean_g.lower() not in ["cinema", "movie", "bilinmeyen", "unknown"]:
-                    genre_ratings[clean_g].append(rating)
-
-            # Yönetmen sayımı
-            for d in item.directors:
-                clean_d = d.strip()
-                if clean_d and clean_d.lower() not in ["bilinmeyen yönetmen", "unknown director", "director"]:
-                    director_counts[clean_d] += 1
-
-        overall_avg = round(sum(all_ratings) / len(all_ratings), 2) if all_ratings else 7.0
-        dominant_era = decade_counts.most_common(1)[0][0][1] if decade_counts else "Modern Sinema"
-
-        # Tür skorları
-        genre_stats = []
-        for g_name, r_list in genre_ratings.items():
-            g_count = len(r_list)
-            g_avg = sum(r_list) / g_count
-            score = (g_count * 1.5) + (g_avg * 1.0)
-            genre_stats.append((g_name, g_count, g_avg, score))
-
-        # En güçlü türler
-        genre_stats.sort(key=lambda x: x[3], reverse=True)
-        top_genres = genre_stats[:10]  # En popüler 10 tür düğümü
-
-        # En çok izlenen yönetmenler (en az 1 filmi olanlar)
-        top_directors = director_counts.most_common(10)
-
-        # Karakter arketipi üret
-        archetype = cls.determine_archetype(
-            [(g[0], g[1], g[2]) for g in top_genres],
-            top_directors,
-            dominant_era,
-            len(enriched_titles),
-            overall_avg
-        )
+        # 3. Yeni Algoritmayı Çalıştır
+        from app.services.graph_builder import build_taste_graph, analyze_graph, generate_persona
+        
+        G = build_taste_graph(watched_list)
+        analysis = analyze_graph(G)
+        pagerank = analysis["pagerank"]
+        communities = analysis["communities"]
 
         nodes: List[GraphNode] = []
+        edges: List[GraphEdge] = []
         node_ids: Set[str] = set()
 
-        # A. Tür Düğümleri (Genre Pattern)
-        for g_name, g_count, g_avg, score in top_genres:
-            node_id = f"genre_{g_name.lower()}"
-            color = GENRE_COLORS.get(g_name.lower(), DEFAULT_GENRE_COLOR)
-            size = min(50, max(26, int(22 + (g_count * 2.0))))
-            nodes.append(GraphNode(
-                id=node_id,
-                label=g_name,
-                type="genre",
-                weight=round(score, 1),
-                size=size,
-                color=color,
-                rating=round(g_avg, 1)
-            ))
-            node_ids.add(node_id)
+        # Düğümleri (Nodes) Oluştur
+        for node, data in G.nodes(data=True):
+            n_kind = data.get("kind")
+            n_label = data.get("label", str(node))
+            node_id_str = str(node[1]) if isinstance(node, tuple) else str(node)
+            final_node_id = f"{n_kind}_{node_id_str}".replace(" ", "_")
+            
+            # Boyutu PageRank'e göre belirle (basit bir çarpanla normalize et)
+            pr_score = pagerank.get(node, 0.001)
+            # Default boyutlar
+            base_size = 20
+            color = "#cbd5e1"
+            rating = None
+            year = None
 
-        # B. Dönem / Yıl Düğümleri (Decade Pattern)
-        for (dec_id, dec_label), d_count in decade_counts.items():
-            if d_count >= 1:  # En az 1 filmi olan dönemler
-                size = min(44, max(24, int(20 + (d_count * 1.5))))
-                nodes.append(GraphNode(
-                    id=dec_id,
-                    label=dec_label,
-                    type="decade",
-                    weight=float(d_count),
-                    size=size,
-                    color=DECADE_COLOR
-                ))
-                node_ids.add(dec_id)
-
-        # C. Yönetmen Düğümleri (Director Pattern)
-        for d_name, d_count in top_directors:
-            if d_count >= 1:
-                node_id = f"dir_{d_name.lower().replace(' ', '_')}"
-                size = min(38, max(20, int(18 + (d_count * 3))))
-                nodes.append(GraphNode(
-                    id=node_id,
-                    label=d_name,
-                    type="director",
-                    weight=float(d_count),
-                    size=size,
-                    color=DIRECTOR_COLOR
-                ))
-                node_ids.add(node_id)
-
-        # D. Dizi Dünyası Format Düğümü (varsa)
-        has_series = any("tv" in (t.title_type or "").lower() or "series" in (t.title_type or "").lower() for t in enriched_titles)
-        if has_series:
-            nodes.append(GraphNode(
-                id="format_series",
-                label="Dizi Dünyası",
-                type="format",
-                weight=5.0,
-                size=32,
-                color=FORMAT_COLOR
-            ))
-            node_ids.add("format_series")
-
-        # E. KULLANICININ İZLEDİĞİ TÜM YAPIMLAR (Hiçbir sınırlama yok!)
-        for idx, item in enumerate(enriched_titles):
-            rating_val = item.user_rating
-            # Benzersiz ID oluştur
-            safe_title = item.title.lower()[:20].strip().replace(" ", "_")
-            t_id = f"title_{safe_title}_{item.year or idx}"
-
-            # Puanına göre stil ve renk:
-            # 8.0+: Parlak beyaz (#ffffff), büyük
-            # 6.0 - 7.9: Normal gri-beyaz (#e2e8f0), orta
-            # < 6.0: Kırmızımsı-pembe (#ff6b6b - negatif/düşük puan göstergesi), daha küçük
-            # Puansız: Yumuşak mavi (#cbd5e1)
-            if rating_val is not None:
-                if rating_val >= 8.0:
-                    node_color = "#ffffff"
-                    node_size = min(26, max(18, int(14 + (rating_val * 1.2))))
-                elif rating_val >= 6.0:
-                    node_color = "#cbd5e1"
-                    node_size = 15
+            if n_kind == "title":
+                rating = data.get("rating")
+                if rating is not None:
+                    if rating >= 8.0:
+                        color = "#ffffff"
+                        base_size = min(30, max(18, int(14 + (rating * 1.2))))
+                    elif rating >= 6.0:
+                        color = "#cbd5e1"
+                        base_size = 15
+                    else:
+                        color = "#ff6b6b"
+                        base_size = 12
                 else:
-                    node_color = "#ff6b6b"  # Düşük puan
-                    node_size = 12
+                    color = "#94a3b8"
+                    base_size = 14
+            elif n_kind == "genre":
+                color = GENRE_COLORS.get(n_label.lower(), DEFAULT_GENRE_COLOR)
+                base_size = min(60, max(25, int(20 + pr_score * 1000)))
+            elif n_kind == "director":
+                color = DIRECTOR_COLOR
+                base_size = min(45, max(20, int(15 + pr_score * 800)))
+            elif n_kind == "decade":
+                color = DECADE_COLOR
+                base_size = min(40, max(20, int(15 + pr_score * 800)))
             else:
-                node_color = "#94a3b8"
-                node_size = 14
+                base_size = min(30, max(15, int(10 + pr_score * 500)))
 
             nodes.append(GraphNode(
-                id=t_id,
-                label=item.title,
-                type="title",
-                weight=rating_val if rating_val is not None else 6.0,
-                size=node_size,
-                color=node_color,
-                rating=rating_val,
-                year=item.year
+                id=final_node_id,
+                label=n_label,
+                type=n_kind,
+                weight=pr_score * 100,
+                size=base_size,
+                color=color,
+                rating=rating,
+                year=year
             ))
-            node_ids.add(t_id)
+            node_ids.add(final_node_id)
 
-        # 4. Kenarlar (Edges) - Yapımları Örüntülerle Bağlama
-        edges: List[GraphEdge] = []
-        edge_pairs: Set[Tuple[str, str]] = set()
+        # Kenarları (Edges) Oluştur
+        for u, v, data in G.edges(data=True):
+            u_kind = G.nodes[u].get("kind")
+            v_kind = G.nodes[v].get("kind")
+            
+            u_id = f"{u_kind}_{str(u[1])}".replace(" ", "_") if isinstance(u, tuple) else str(u)
+            v_id = f"{v_kind}_{str(v[1])}".replace(" ", "_") if isinstance(v, tuple) else str(v)
+            
+            edges.append(GraphEdge(
+                source=u_id,
+                target=v_id,
+                relation="connected",
+                weight=data.get("weight", 1.0)
+            ))
 
-        for idx, item in enumerate(enriched_titles):
-            safe_title = item.title.lower()[:20].strip().replace(" ", "_")
-            t_id = f"title_{safe_title}_{item.year or idx}"
+        # En baskın topluluğa (community) göre arketip belirle
+        best_persona = None
+        largest_size = 0
+        all_personas = []
+        for idx, comm in enumerate(communities):
+            persona = generate_persona(G, comm)
+            if persona and persona["valence"] == "positive":
+                all_personas.append(persona)
+                if persona["size"] > largest_size:
+                    largest_size = persona["size"]
+                    best_persona = persona
 
-            # 1. Tür Bağlantıları
-            has_genre_link = False
-            for g in item.genres:
-                g_id = f"genre_{g.strip().lower()}"
-                if g_id in node_ids:
-                    pair = (t_id, g_id)
-                    if pair not in edge_pairs:
-                        edges.append(GraphEdge(
-                            source=t_id,
-                            target=g_id,
-                            relation="has_genre",
-                            weight=1.5
-                        ))
-                        edge_pairs.add(pair)
-                        has_genre_link = True
-
-            # 2. Yönetmen Bağlantıları
-            for d in item.directors:
-                d_id = f"dir_{d.strip().lower().replace(' ', '_')}"
-                if d_id in node_ids:
-                    pair = (t_id, d_id)
-                    if pair not in edge_pairs:
-                        edges.append(GraphEdge(
-                            source=t_id,
-                            target=d_id,
-                            relation="directed_by",
-                            weight=2.0
-                        ))
-                        edge_pairs.add(pair)
-
-            # 3. Dönem Bağlantısı (Decade Pattern)
-            dec_id, _ = cls.get_decade_info(item.year)
-            if dec_id in node_ids:
-                pair = (t_id, dec_id)
-                if pair not in edge_pairs:
-                    # Eğer filmin türü yoksa dönem bağlantısı daha güçlü olsun ki yalnız kalmasın
-                    w = 2.0 if not has_genre_link else 1.0
-                    edges.append(GraphEdge(
-                        source=t_id,
-                        target=dec_id,
-                        relation="from_decade",
-                        weight=w
-                    ))
-                    edge_pairs.add(pair)
-
-            # 4. Format Bağlantısı (Dizi ise Dizi Dünyasına)
-            is_series = "tv" in (item.title_type or "").lower() or "series" in (item.title_type or "").lower()
-            if is_series and "format_series" in node_ids:
-                pair = (t_id, "format_series")
-                if pair not in edge_pairs:
-                    edges.append(GraphEdge(
-                        source=t_id,
-                        target="format_series",
-                        relation="has_format",
-                        weight=1.8
-                    ))
-                    edge_pairs.add(pair)
-
-        # 5. Üst Düzey Örüntü Bağları (Tür ➔ Tür & Yönetmen ➔ Tür)
-        # Türler arası ortak bağlar
-        co_genre_counter: Counter = Counter()
-        for item in enriched_titles:
-            clean_genres = [g.strip().capitalize() for g in item.genres if f"genre_{g.strip().lower()}" in node_ids]
-            for i in range(len(clean_genres)):
-                for j in range(i + 1, len(clean_genres)):
-                    g1, g2 = sorted([clean_genres[i], clean_genres[j]])
-                    co_genre_counter[(g1, g2)] += 1
-
-        for (g1, g2), count in co_genre_counter.most_common(8):
-            g1_id = f"genre_{g1.lower()}"
-            g2_id = f"genre_{g2.lower()}"
-            if g1_id in node_ids and g2_id in node_ids:
-                pair = (g1_id, g2_id)
-                if pair not in edge_pairs:
-                    edges.append(GraphEdge(
-                        source=g1_id,
-                        target=g2_id,
-                        relation="co_genre",
-                        weight=min(3.5, 1.2 + (count * 0.3))
-                    ))
-                    edge_pairs.add(pair)
+        if best_persona:
+            llm_facts = best_persona["llm_prompt_facts"]
+            archetype = TasteArchetype(
+                title=best_persona["rule_based_title"],
+                tagline="Graf analiziyle bulunan en belirgin topluluk",
+                description=f"Senin zevk kümelerinde en baskın yapı {best_persona['size']} filmle bu topluluk. Ortalama puanı: {best_persona['avg_rating']}",
+                dominant_genres=llm_facts.get("dominant_genres", []),
+                favorite_directors=[llm_facts.get("signature_director")] if llm_facts.get("signature_director") else [],
+                cinematic_era="Modern",
+                total_watched=len(titles),
+                average_rating=llm_facts.get("avg_rating")
+            )
+        else:
+            # Fallback
+            archetype = TasteArchetype(
+                title="Çok Yönlü İzleyici",
+                tagline="Belirgin bir küme bulunamadı",
+                description="Zevkin oldukça çeşitli ve tek bir alana toplanmamış.",
+                dominant_genres=[],
+                favorite_directors=[],
+                cinematic_era="Bilinmiyor",
+                total_watched=len(titles),
+                average_rating=7.0
+            )
 
         return NetworkGraphResponse(
             archetype=archetype,

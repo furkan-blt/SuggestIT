@@ -11,12 +11,19 @@ class CSVService:
     def parse_imdb_csv(cls, file_content: str) -> List[TitleItem]:
         """IMDb tarafından dışa aktarılan ratings.csv veya watchlist.csv dosyasını ayrıştırır."""
         items: List[TitleItem] = []
-        reader = csv.DictReader(io.StringIO(file_content))
+        
+        # Ayırıcıyı belirle (Excel'den kopyalanmışsa tab olabilir)
+        delimiter = ','
+        first_line = file_content.splitlines()[0] if file_content else ""
+        if '\t' in first_line and ',' not in first_line:
+            delimiter = '\t'
+            
+        reader = csv.DictReader(io.StringIO(file_content), delimiter=delimiter)
         
         for row in reader:
             # Sütun isimleri bazen 'Const' bazen 'const' olabilir
             imdb_id = row.get("Const") or row.get("const") or row.get("IMDb ID")
-            title = row.get("Title") or row.get("title") or "Bilinmeyen Başlık"
+            title = row.get("Title") or row.get("title") or row.get("Original Title") or "Bilinmeyen Başlık"
             
             # Yıl
             year_val = None
@@ -29,6 +36,8 @@ class CSVService:
             raw_rating = row.get("Your Rating") or row.get("your_rating")
             if raw_rating:
                 try:
+                    # Virgüllü sayıları (ör: 7,9) noktaya (7.9) çevir
+                    raw_rating = raw_rating.replace(',', '.')
                     user_rating = float(raw_rating)
                 except ValueError:
                     pass
@@ -40,7 +49,11 @@ class CSVService:
             genres = []
             raw_genres = row.get("Genres") or row.get("genres")
             if raw_genres:
-                genres = [g.strip() for g in raw_genres.split(",") if g.strip()]
+                genres = [g.strip() for g in raw_genres.replace('|', ',').split(",") if g.strip()]
+            
+            raw_genres2 = row.get("Genres 2") or row.get("genres 2")
+            if raw_genres2:
+                genres.extend([g.strip() for g in raw_genres2.replace('|', ',').split(",") if g.strip() and g.strip() not in genres])
 
             # Directors
             directors = []

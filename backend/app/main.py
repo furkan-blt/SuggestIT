@@ -34,14 +34,17 @@ app.add_middleware(
 # API Yönlendiricilerini Bağla
 app.include_router(api_router)
 
-@app.get("/")
+from fastapi.responses import HTMLResponse
+import os
+
+@app.get("/", response_class=HTMLResponse)
 def root():
-    return {
-        "project": "SuggestIT API",
-        "version": "0.1.0",
-        "docs": "/docs",
-        "status": "online"
-    }
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
+    if not os.path.exists(template_path):
+        return {"project": "SuggestIT API", "status": "online"}
+    with open(template_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
 
 if __name__ == "__main__":
     import uvicorn

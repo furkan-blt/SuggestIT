@@ -82,19 +82,23 @@ flowchart TD
 ## 4. Çekirdek Özellikler & Fonksiyonel Tasarım
 
 ### 4.1 Kullanıcı Karakter Haritası (Taste Network Graph)
-Kullanıcının film/dizi zevkini yaşayan bir evren olarak görselleştiren interaktif ağ:
-- **Düğümler (Nodes):**
-  - Merkez Düğümler: En çok izlenen & en yüksek puan alan **Türler** (örn: *Psikolojik Gerilim, Neo-Noir, Cyberpunk*).
-  - Alt Düğümler: Sevilen **Yönetmenler / Yaratıcılar** (örn: *Christopher Nolan, David Fincher*).
-  - Bağlantılı Düğümler: Kullanıcının 8+ puan verdiği **Kilit Yapımlar**.
-- **Kenarlar (Edges):** Yapımlar ile türler/yönetmenler arasındaki ilişki gücü (izleme sayısı ve puan ağırlıklı kalınlık).
-- **Karakter Özeti:** Ağın yapısına göre kullanıcıya mizahi/tematik bir profil unvanı atanır (Örn: *"Karanlık Atmosfer ve Beyin Yakan Kurgu Meraklısı"*).
+Tek bir **ağırlıklı, çok ilişkili graf** üzerine kurulu. Düğüm tipleri önceden sabitlenmiyor (Tür/Yönetmen/Yapım gibi 3 katman) — `title`, `genre`, `director`, `decade`, `keyword` aynı graf içinde birlikte var oluyor ve gerçek yapı, graf analizinden ortaya çıkıyor:
+
+* **Kenar ağırlığı:** Yüksek puanlar üssel olarak daha ağır basar ve yakın zamanda izlenenler öne çıkarılır. (`weight = (puan/10)^2 × recency_factor`)
+* **Bayesian shrinkage:** Bir özniteliğin (ör. bir tür) düğüm ağırlığı, kanıt sayısı arttıkça güvenilirlik kazanır.
+* **Gerçek merkezilik (PageRank):** Düğüm boyutu ağırlıklı PageRank ile hesaplanır.
+* **Topluluk tespiti (Louvain):** Graf, önceden tanımlanmış "tür kümeleri" değil, organik olarak oluşan **zevk toplulukları** buluyor.
+* **Köprü (bridge) düğümler:** betweenness centrality ile, iki farklı zevk topluluğunu birbirine bağlayan düğümler tespit ediliyor.
+* **Karakter Özeti (Persona):** Her pozitif-valence topluluk için deterministik ham gerçekler çıkarılıp LLM'e verilerek mizahi bir unvana çevrilir. Düşük puanlı kümeler "Kaçındığın Kalıp" olarak gösterilir.
 
 ### 4.2 Akıllı Öneri Motoru (Recommendation Engine)
-1. **Semantik Eşleştirme (Vektör Uzayı):** Yapımların konu özetleri ve anlatı tonları vektörize edilir. Kullanıcının yüksek puanlı yapımlarından bir "Zevk Ağırlık Merkezi" oluşturulur.
-2. **Çapraz Eşleşme (Dizi ⇄ Film):** İzlenen dizilerin dinamikleri (karakter gelişimi, gerilim dozu) eşdeğer tona sahip uzun metraj filmlerle eşlenir; aynı mantık filmlerden mini dizilere de çalışır.
-3. **Negatif Filtreleme:** Kullanıcının 1-4 puan verdiği yapımlardaki ortak etiketler ve temalar elenir veya ceza puanı alır.
-4. **"Neden İzlemelisin?" Açıklama Katmanı:** Önerilen her başlığın altında, kullanıcının geçmişine atıfta bulunan 1-2 cümlelik dinamik gerekçe gösterilir.
+1. **Çok merkezli zevk uzayı:** Eski tasarımdaki tek merkeze karşın, yeni tasarımda her Louvain topluluğu kendi puan-ağırlıklı centroid'ine sahip; bir aday, en yakın olduğu merkeze göre puanlanır.
+2. **Graf yakınlık bonusu:** Aday, kullanıcının kimliğini tanımlayan yüksek-PageRank düğümlere (tür/yönetmen) bağlıysa ekstra puan alır.
+3. **Çapraz eşleşme (Dizi ⇄ Film):** Medya türü farkını aşmak için, anlatı DNA'sı (tempo/ton etiketleri) alt vektörü üzerinden karşılaştırma yapılıp bonus ekleniyor.
+4. **Yumuşak negatif filtreleme:** Sert eleme yerine, düşük puanlı yapımlara anlamsal benzerlik oranında ceza puanı düşülür.
+5. **Keşif (novelty) bonusu:** İzlenenlerin hiçbirine aşırı yakın olmayan adaylar küçük bir bonus alır.
+6. **MMR yeniden sıralama:** Son liste sadece skora göre değil, Maximal Marginal Relevance (MMR) ile çeşitlilik de gözetilerek sıralanır.
+7. **"Neden İzlemelisin?" katmanı:** Gerekçe skorlama sürecinin ürettiği gerçek sinyallerden deterministik olarak çıkarılıyor ve LLM destekli cümleye dönüştürülüyor.
 
 ---
 

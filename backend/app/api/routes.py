@@ -115,3 +115,80 @@ async def import_csv_file(
     except Exception as e:
         logger.error(f"CSV import hatası: {e}")
         raise HTTPException(status_code=500, detail=f"CSV işlenirken hata oluştu: {str(e)}")
+
+@router.post("/recommendations/generate", tags=["Recommendations"])
+async def generate_recommendations(titles: list[dict]):
+    """
+    Kullanıcının izleme geçmişine dayanarak v2 AI Recommender (TasteVectorSpace) ile öneriler üretir.
+    """
+    try:
+        from app.schemas.models import TitleItem
+        from app.services.tmdb_service import TMDBService
+        from app.services.graph_builder import build_taste_graph, analyze_graph
+        from app.services.recommender_service import TasteVectorSpace, build_cluster_centroids, negative_profile, score_candidates, mmr_rerank, explain
+        from app.services.mock_data import CANDIDATES # Öneri aday havuzu
+        
+        parsed_titles = [TitleItem(**t) if isinstance(t, dict) else t for t in titles]
+        enriched_titles = TMDBService.enrich_all(parsed_titles)
+        
+        watched_list = []
+        for idx, item in enumerate(enriched_titles):
+            genres = [g.strip().capitalize() for g in item.genres if g.strip()]
+            director = item.directors[0] if item.directors else "Unknown"
+            
+            watched_list.append({
+                "id": f"t_{idx}",
+                "title": item.title,
+                "media_type": "series" if "tv" in (item.title_type or "").lower() else "movie",
+                "genres": genres,
+                "director": director,
+                "decade": "2010s", # Basit mock
+                "keywords": [],
+                "overview": item.title, # Basit overview, idealde TMDB'den gelir
+                "user_rating": item.user_rating if item.user_rating is not None else 7.0,
+                "days_since_watched": 30
+            })
+            
+        G = build_taste_graph(watched_list)
+        analysis = analyze_graph(G)
+        
+        # Tüm yapımlar (izlenenler + adaylar) vektör uzayına konur
+        all_items = watched_list + CANDIDATES
+        space = TasteVectorSpace(all_items)
+        
+        centroids = build_cluster_centroids(space, analysis["communities"], G)
+        
+        disliked = [t for t in watched_list if t["user_rating"] is not None and t["user_rating"] < 5]
+        neg_vecs, neg_pen = negative_profile(space, disliked)
+        
+        watched_by_id = {t["id"]: t for t in watched_list}
+        
+        scored = score_candidates(
+            space, centroids, watched_by_id, CANDIDATES, G, analysis["pagerank"],
+            neg_vecs, neg_pen
+        )
+        
+        top_picks = mmr_rerank(scored, top_n=5)
+        
+        # Neden izlemelisin (explain) metinlerini ekle ve numpy vector'ü sil
+        clean_picks = []
+        for pick in top_picks:
+            reason = explain(pick, centroids, G, watched_by_id)
+            clean_picks.append({
+                "id": str(pick["id"]),
+                "title": str(pick["title"]),
+                "media_type": str(pick["media_type"]),
+                "score": float(pick["score"]),
+                "best_cluster": int(pick["best_cluster"]) if pick["best_cluster"] is not None else None,
+                "semantic_sim": float(pick["semantic_sim"]),
+                "graph_bonus": float(pick["graph_bonus"]),
+                "cross_media_bonus": float(pick["cross_media_bonus"]),
+                "penalty": float(pick["penalty"]),
+                "novelty": float(pick["novelty"]),
+                "reason": str(reason)
+            })
+            
+        return {"recommendations": clean_picks}
+    except Exception as e:
+        logger.error(f"Öneri motoru hatası: {e}")
+        raise HTTPException(status_code=500, detail=f"Öneriler üretilemedi: {str(e)}")

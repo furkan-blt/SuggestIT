@@ -25,6 +25,21 @@ tt0903747,10,2024-03-01,Breaking Bad,https://www.imdb.com/title/tt0903747/,tvSer
     assert summary.avg_user_rating == 9.67
     print("[OK] IMDb CSV ayristirmasi BASARILI!")
 
+def test_imdb_csv_tab_separated():
+    sample_csv = "Const\tYour Rating\tDate Rated\tTitle\tOriginal Title\tURL\tTitle Type\tIMDb Rating\tRuntime (mins)\tYear\tGenres\tGenres 2\tNum Votes\tRelease Date\tDirectors\n"
+    sample_csv += "tt3915174\t7\t9.09.2026\tPuss in Boots: The Last Wish\tPuss in Boots: The Last Wish\thttps://www.imdb.com/title/tt3915174\tMovie\t7,9\t102\t2022\tAnimation\tAction\t231105\t21.12.2022\tJoel Crawford,Januel P. Mercado\n"
+    sample_csv += "tt5363618\t7,5\t6.09.2026\tSound of Metal\tSound of Metal\thttps://www.imdb.com/title/tt5363618\tMovie\t7,7\t120\t2019\tDrama\tMusic\t188831\t4.12.2020\tDarius Marder"
+    
+    summary = CSVService.process_uploaded_csv(sample_csv, platform="imdb")
+    print("\n--- IMDb Tab-Separated CSV Testi Sonucu ---")
+    print(f"Toplam Yapım: {summary.total_items}")
+    print(f"Ortalama Puan: {summary.avg_user_rating}")
+    assert summary.total_items == 2
+    assert summary.items[0].genres == ["Animation", "Action"]
+    assert summary.items[1].genres == ["Drama", "Music"]
+    assert summary.items[1].user_rating == 7.5
+    print("[OK] IMDb Tab-Separated CSV ayristirmasi BASARILI!")
+
 def test_letterboxd_csv():
     sample_lb_csv = """Date,Name,Year,Letterboxd URI,Rating
 2024-01-10,Inception,2010,https://boxd.it/1sz2,4.5
@@ -52,6 +67,7 @@ def test_imdb_url_normalization():
 if __name__ == "__main__":
     print("SuggestIT Backend Testleri Baslatiliyor...")
     test_imdb_csv()
+    test_imdb_csv_tab_separated()
     test_letterboxd_csv()
     test_imdb_url_normalization()
     print("\n[SUCCESS] Tum Faz 1 Cekirdek Testleri Basariyla Gecti!")

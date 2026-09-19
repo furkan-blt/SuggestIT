@@ -10,7 +10,7 @@ Bu dosya, projenin mimari ve iş modeli açısından **tartışmaya kapalı, tem
 
 ## 2. Taste Network Graph (Zevk Ağı) Değişmezleri
 - **Eksiksiz Temsil Kuralı:** Kullanıcının izlediği **tüm yapımlar (puanı ne olursa olsun) ağda yer almalıdır.** Yüksek puanlılarla sınırlama yapılamaz; kullanıcının 2 puan verdiği yapım da onun sinema karakterinin (negatif zevk alanının) bir parçasıdır. Puanlar düğümün boyutunu, parlaklığını veya rengini etkileyebilir ancak yapımı ağdan silemez.
-- **Organik Bağlantı Kuralı (Anti-Jenerik İlkesi):** Sisteme sahte, anlamsız veya jenerik şemsiye düğümler (Örn: *"Cinema"*, *"Movie"* vb.) **kesinlikle eklenemez.** Her yapım gerçek **türler (genres)**, **dönemler / yıllar (decades - örn: 2010'lar, 90'lar)**, **yönetmenler** veya yapım türü (Dizi / Film) gibi somut örüntülerle (pattern) ağa bağlanmalıdır.
+- **Organik Bağlantı Kuralı (Anti-Jenerik İlkesi):** Sisteme sahte, anlamsız veya jenerik şemsiye düğümler (Örn: *"Cinema"*, *"Movie"* vb.) **kesinlikle eklenemez.** Her yapım gerçek **türler (genres)**, **yönetmenler** veya **yapım türü (Dizi / Film)** gibi somut örüntülerle (pattern) ağa bağlanmalıdır.
 
 ## 3. Veri & Kullanıcı Hakları
 - **Platform Bağımsızlığı:** Sistem yalnızca tek bir platforma bağımlı kalmayacak; hem Letterboxd hem IMDb birinci sınıf vatandaş olarak kabul edilecektir.

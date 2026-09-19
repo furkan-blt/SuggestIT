@@ -491,8 +491,26 @@
     }
 
     // İlk açılışta yükle
-    window.addEventListener("DOMContentLoaded", () => {
-      loadSampleIMDb();
+    window.addEventListener("DOMContentLoaded", async () => {
+      const stored = localStorage.getItem('suggestit_titles');
+      if (stored) {
+        try {
+          const titles = JSON.parse(stored);
+          document.getElementById("archTitle").innerText = "Yüklenen CSV Analiz Ediliyor...";
+          const graphResp = await fetch("/api/v1/graph/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(titles)
+          });
+          const graphData = await graphResp.json();
+          renderGraph(graphData);
+        } catch(e) {
+          console.error("Local storage veri işleme hatası", e);
+          loadSampleIMDb();
+        }
+      } else {
+        loadSampleIMDb();
+      }
     });
 
     window.addEventListener("resize", () => {
