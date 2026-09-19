@@ -1,11 +1,15 @@
+import os
 import logging
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from typing import Optional
-
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi.responses import HTMLResponse
 from app.schemas.models import SyncUrlRequest, SyncSummary, HealthResponse
+
+from app.schemas.graph_models import NetworkGraphResponse
 from app.services.imdb_service import IMDbService
 from app.services.csv_service import CSVService
 from app.services.letterboxd_service import LetterboxdService
+from app.services.graph_service import GraphService
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +24,36 @@ async def health_check():
         version="0.1.0"
     )
 
+@router.post("/graph/generate", response_model=NetworkGraphResponse, tags=["Taste Graph"])
+async def generate_taste_graph(titles: list[dict]):
+    """
+    Film ve dizi listesinden kullanıcının Taste Network Graph'ını ve Sinematik Arketipini üretir.
+    """
+    try:
+        from app.schemas.models import TitleItem
+        parsed_titles = [TitleItem(**t) if isinstance(t, dict) else t for t in titles]
+        graph_data = GraphService.generate_graph(parsed_titles)
+        return graph_data
+    except Exception as e:
+        logger.error(f"Graph üretim hatası: {e}")
+        raise HTTPException(status_code=500, detail=f"Ağ grafiği üretilemedi: {str(e)}")
+
+@router.get("/graph/preview", response_class=HTMLResponse, tags=["Taste Graph"])
+async def preview_taste_graph():
+    """
+    Kullanıcının Zevk Ağ Grafiğini (Taste Network Graph) tarayıcıda doğrudan
+    interaktif ve animasyonlu olarak görselleştiren D3.js paneli.
+    """
+    template_path = os.path.join(os.path.dirname(__file__), "..", "templates", "graph_preview.html")
+    if not os.path.exists(template_path):
+        raise HTTPException(status_code=404, detail="Preview şablonu bulunamadı.")
+    with open(template_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
+
 @router.post("/sync/letterboxd-url", response_model=SyncSummary)
 async def sync_letterboxd_url(payload: SyncUrlRequest):
+
     """
     Kullanıcının Letterboxd profil URL'si veya kullanıcı adı üzerinden
     son izleme ve puanlama verilerini anında çeker.
